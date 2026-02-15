@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Sagrada Família - ShadowCast (Clipped)</title>
+
+  <link rel="stylesheet" href="https://js.arcgis.com/4.29/esri/themes/light/main.css" />
+  <script src="https://js.arcgis.com/4.29/"></script>
+
+  <style>
+    html, body, #viewDiv { padding: 0; margin: 0; height: 100%; width: 100%; }
+  </style>
+
+  <script>
+    require([
+      "esri/Map",
+      "esri/views/SceneView",
+      "esri/layers/SceneLayer",
+      "esri/widgets/ShadowCast",
+      "esri/geometry/Point",
+      "esri/geometry/Extent",
+      "esri/geometry/support/webMercatorUtils"
+    ], function (
+      Map, SceneView, SceneLayer, ShadowCast, Point, Extent, webMercatorUtils
+    ) {
+
+      const SAGRADA = { lon: 2.173504, lat: 41.403706 };
+      const BUFFER_METERS = 1200; // اندازه محدوده (متر)
+
+      const map = new Map({
+        basemap: "satellite",
+        ground: "world-elevation"
+      });
+
+      const osmBuildings = new SceneLayer({
+        portalItem: { id: "ca0470dbbddb4db28bad74ed39949e25" },
+        title: "OSM 3D Buildings"
+      });
+      map.add(osmBuildings);
+
+      const view = new SceneView({
+        container: "viewDiv",
+        map,
+        viewingMode: "local",   // خیلی مهم
+        qualityProfile: "high"
+      });
+
+      view.environment.lighting.directShadowsEnabled = true;
+
+      view.when(() => {
+        // Point in WGS84
+        const poi = new Point({
+          longitude: SAGRADA.lon,
+          latitude: SAGRADA.lat,
+          spatialReference: { wkid: 4326 }
+        });
+
+        // Convert to WebMercator (meters)
+        const poiWM = webMercatorUtils.geographicToWebMercator(poi);
+
+        // Build an Extent (rectangle) around the POI
+        const clipExtent = new Extent({
+          xmin: poiWM.x - BUFFER_METERS,
+          ymin: poiWM.y - BUFFER_METERS,
+          xmax: poiWM.x + BUFFER_METERS,
+          ymax: poiWM.y + BUFFER_METERS,
+          spatialReference: poiWM.spatialReference
+        });
+
+        // Apply clipping
+        view.clippingArea = clipExtent;
+
+        // Zoom to the clipped area
+        view.goTo({ target: clipExtent.expand(1.15), tilt: 65, heading: 0 }, { duration: 1200 });
+      });
+
+      const shadowCast = new ShadowCast({ view });
+      view.ui.add(shadowCast, "top-right");
+    });
+  </script>
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+</body>
+</html>
